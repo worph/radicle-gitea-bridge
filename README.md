@@ -84,6 +84,7 @@ password) and leaves:
 | --- | --- | --- |
 | `radicle-gitea-bridge` | `write:repository`, `write:user` | `$SECRETS_DIR/gitea-token` (0600) |
 | `actions-registry-push` | `write:package` | user-level Actions secret `REGISTRY_TOKEN` |
+| `ipcr-import` (only if `IPCR_AUTH_FILE` is set) | `read:package` | `$IPCR_AUTH_FILE`, as `owner:token`, for an IPCR gateway's `IMPORT_AUTH_FILE` |
 
 `write:user` is what creating a repository requires. The user-level secret applies to every
 repository the account owns, so new copies can push images with no per-repository setup.

@@ -10,11 +10,15 @@
 #                             repository the bridge creates can push images without
 #                             per-repository setup. The token Actions injects as
 #                             secrets.GITHUB_TOKEN is refused by Gitea's registry.
-# Safe to re-run: both tokens are replaced.
+#   $IPCR_AUTH_FILE           optional: `owner:token` with read:package, for an IPCR
+#                             gateway that follows this Gitea's registry
+#                             (ipcrd's IMPORT_AUTH_FILE). Only when the variable is set.
+# Safe to re-run: every token is replaced.
 set -eu
 GITEA_URL=${GITEA_URL:-http://gitea:3000}
 GITEA_OWNER=${GITEA_OWNER:-gitea_admin}
 SECRETS_DIR=${SECRETS_DIR:-/secrets}
+IPCR_AUTH_FILE=${IPCR_AUTH_FILE:-}
 : "${GITEA_PASSWORD:?the Gitea admin password}"
 A=$GITEA_URL/api/v1
 
@@ -39,6 +43,13 @@ registry=$(mint actions-registry-push '["write:package"]')
 admin -f -o /dev/null -X PUT "$A/user/actions/secrets/REGISTRY_TOKEN" -d "$(jq -n --arg d "$registry" '{data:$d}')"
 
 umask 077
-printf '%s' "$bridge" > "$SECRETS_DIR/gitea-token.new"
-mv "$SECRETS_DIR/gitea-token.new" "$SECRETS_DIR/gitea-token"
+# Written then renamed, so a reader never sees half a token.
+put() { printf '%s' "$2" > "$1.new" && mv "$1.new" "$1"; }
+
+if [ -n "$IPCR_AUTH_FILE" ]; then
+	put "$IPCR_AUTH_FILE" "$GITEA_OWNER:$(mint ipcr-import '["read:package"]')"
+	echo "IPCR import credential written to $IPCR_AUTH_FILE"
+fi
+
+put "$SECRETS_DIR/gitea-token" "$bridge"
 echo "bridge token and REGISTRY_TOKEN secret are in place"
